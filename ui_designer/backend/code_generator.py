@@ -1,44 +1,29 @@
 class CppCodeGenerator:
-    """Генератор Win32 GUI кода для C++"""
-    
-    def __init__(self):
-        self.component_templates = {
-            'button': self._generate_button,
-            'label': self._generate_label,
-            'textbox': self._generate_textbox,
-            'window': self._generate_window,
-            'checkbox': self._generate_checkbox,
-            'radiobutton': self._generate_radiobutton,
-            'listbox': self._generate_listbox,
-            'panel': self._generate_panel
-        }
+    """Генератор Win32 GUI кода для C++ (ANSI версия)"""
     
     def generate_code(self, project_name, components):
         """Генерация полного Win32 GUI кода"""
         
-        # Очищаем имя проекта от специальных символов
+        # Очищаем имя проекта
         project_name = ''.join(c for c in project_name if c.isalnum() or c == '_')
         if not project_name:
             project_name = "MyApplication"
         
-        # Начало файла с ресурсами
+        # Начало кода
         code = f"""// Generated Win32 GUI Code for {project_name}
-// This code creates a native Windows GUI application
 // Compile with: g++ -o {project_name}.exe {project_name}.cpp -lgdi32 -mwindows
-// Or use CodeBlocks: Create Win32 GUI Project and replace main.cpp
 
 #include <windows.h>
 #include <string>
 #include <vector>
 #include <map>
-#include <functional>
 
 using namespace std;
 
-// Resource IDs for controls
+// Resource IDs
 #define IDC_MAIN_WINDOW    1000
 """
-        
+
         # Генерируем ID для каждого компонента
         id_counter = 1001
         for component in components:
@@ -47,7 +32,7 @@ using namespace std;
             component['resource_id'] = comp_id
             component['numeric_id'] = id_counter
             id_counter += 1
-        
+
         code += f"""
 // Global variables
 HINSTANCE g_hInst;
@@ -58,28 +43,26 @@ map<int, HWND> g_Controls;
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 void CreateControls(HWND hwnd);
 
-// Application entry point
+// Entry point
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
                    LPSTR lpCmdLine, int nCmdShow)
 {{
     g_hInst = hInstance;
     
-    // Register window class
     WNDCLASSEX wc = {{0}};
     wc.cbSize = sizeof(WNDCLASSEX);
     wc.lpfnWndProc = WndProc;
     wc.hInstance = hInstance;
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
     wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
-    wc.lpszClassName = L"{project_name}Class";
+    wc.lpszClassName = "{project_name}Class";
     
     RegisterClassEx(&wc);
     
-    // Create main window
     g_hMainWnd = CreateWindowEx(
         0,
-        L"{project_name}Class",
-        L"{project_name} - UI Designer",
+        "{project_name}Class",
+        "{project_name} - GUI Designer",
         WS_OVERLAPPEDWINDOW | WS_VISIBLE,
         CW_USEDEFAULT, CW_USEDEFAULT, 800, 600,
         NULL, NULL, hInstance, NULL
@@ -91,7 +74,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
     ShowWindow(g_hMainWnd, nCmdShow);
     UpdateWindow(g_hMainWnd);
     
-    // Message loop
     MSG msg;
     while (GetMessage(&msg, NULL, 0, 0))
     {{
@@ -121,49 +103,15 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             {{
 """
         
-        # Генерируем обработчики для каждого компонента
+        # Генерируем обработчики для кнопок
         for component in components:
-            comp_type = component.get('type', 'button')
-            resource_id = component['resource_id']
-            
-            if comp_type == 'button':
+            if component.get('type') == 'button':
+                resource_id = component['resource_id']
                 code += f"""
                 case {resource_id}:
                     if (wmEvent == BN_CLICKED)
                     {{
-                        MessageBox(hwnd, L"Button clicked!", L"Action", MB_OK);
-                        // Add your button click handler here
-                    }}
-                    break;
-"""
-            elif comp_type == 'checkbox':
-                code += f"""
-                case {resource_id}:
-                    if (wmEvent == BN_CLICKED)
-                    {{
-                        BOOL isChecked = (SendMessage(hControl, BM_GETCHECK, 0, 0) == BST_CHECKED);
-                        // Handle checkbox state change
-                    }}
-                    break;
-"""
-            elif comp_type == 'radiobutton':
-                code += f"""
-                case {resource_id}:
-                    if (wmEvent == BN_CLICKED)
-                    {{
-                        // Handle radio button selection
-                        SendMessage(hControl, BM_SETCHECK, BST_CHECKED, 0);
-                    }}
-                    break;
-"""
-            elif comp_type == 'textbox':
-                code += f"""
-                case {resource_id}:
-                    if (wmEvent == EN_CHANGE)
-                    {{
-                        wchar_t text[256];
-                        GetWindowText(hControl, text, 256);
-                        // Handle text change
+                        MessageBox(hwnd, "Button clicked!", "Action", MB_OK);
                     }}
                     break;
 """
@@ -181,14 +129,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     }
     
     return DefWindowProc(hwnd, msg, wParam, lParam);
-}
+}}
 
 // Create all UI controls
 void CreateControls(HWND hwnd)
 {
 """
         
-        # Генерируем создание каждого компонента
+        # Генерируем создание компонентов
         for component in components:
             comp_type = component.get('type', 'button')
             props = component.get('properties', {})
@@ -204,7 +152,7 @@ void CreateControls(HWND hwnd)
                 text = text.replace('"', '\\"')
                 code += f"""
     // Button: {text}
-    g_Controls[{resource_id}] = CreateWindow(L"BUTTON", L"{text}",
+    g_Controls[{resource_id}] = CreateWindow("BUTTON", "{text}",
         WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
         {x}, {y}, {width}, {height},
         hwnd, (HMENU){resource_id}, g_hInst, NULL);
@@ -214,7 +162,7 @@ void CreateControls(HWND hwnd)
                 text = text.replace('"', '\\"')
                 code += f"""
     // Label: {text}
-    g_Controls[{resource_id}] = CreateWindow(L"STATIC", L"{text}",
+    g_Controls[{resource_id}] = CreateWindow("STATIC", "{text}",
         WS_VISIBLE | WS_CHILD,
         {x}, {y}, {width}, {height},
         hwnd, (HMENU){resource_id}, g_hInst, NULL);
@@ -223,8 +171,8 @@ void CreateControls(HWND hwnd)
                 placeholder = props.get('placeholder', 'Enter text')
                 placeholder = placeholder.replace('"', '\\"')
                 code += f"""
-    // TextBox: {placeholder}
-    g_Controls[{resource_id}] = CreateWindow(L"EDIT", L"{placeholder}",
+    // TextBox
+    g_Controls[{resource_id}] = CreateWindow("EDIT", "{placeholder}",
         WS_VISIBLE | WS_CHILD | WS_BORDER | ES_AUTOHSCROLL,
         {x}, {y}, {width}, {height},
         hwnd, (HMENU){resource_id}, g_hInst, NULL);
@@ -235,7 +183,7 @@ void CreateControls(HWND hwnd)
                 checked = "BST_CHECKED" if props.get('checked', False) else "BST_UNCHECKED"
                 code += f"""
     // Checkbox: {text}
-    g_Controls[{resource_id}] = CreateWindow(L"BUTTON", L"{text}",
+    g_Controls[{resource_id}] = CreateWindow("BUTTON", "{text}",
         WS_VISIBLE | WS_CHILD | BS_AUTOCHECKBOX,
         {x}, {y}, {width}, {height},
         hwnd, (HMENU){resource_id}, g_hInst, NULL);
@@ -247,7 +195,7 @@ void CreateControls(HWND hwnd)
                 selected = "BST_CHECKED" if props.get('selected', False) else "BST_UNCHECKED"
                 code += f"""
     // RadioButton: {text}
-    g_Controls[{resource_id}] = CreateWindow(L"BUTTON", L"{text}",
+    g_Controls[{resource_id}] = CreateWindow("BUTTON", "{text}",
         WS_VISIBLE | WS_CHILD | BS_AUTORADIOBUTTON,
         {x}, {y}, {width}, {height},
         hwnd, (HMENU){resource_id}, g_hInst, NULL);
@@ -257,21 +205,21 @@ void CreateControls(HWND hwnd)
                 items = props.get('items', ['Item 1', 'Item 2', 'Item 3'])
                 code += f"""
     // ListBox
-    g_Controls[{resource_id}] = CreateWindow(L"LISTBOX", NULL,
+    g_Controls[{resource_id}] = CreateWindow("LISTBOX", NULL,
         WS_VISIBLE | WS_CHILD | WS_BORDER | WS_VSCROLL | LBS_NOTIFY,
         {x}, {y}, {width}, {height},
         hwnd, (HMENU){resource_id}, g_hInst, NULL);
 """
                 for item in items:
                     item = item.replace('"', '\\"')
-                    code += f'    SendMessage(g_Controls[{resource_id}], LB_ADDSTRING, 0, (LPARAM)L"{item}");\n'
+                    code += f'    SendMessage(g_Controls[{resource_id}], LB_ADDSTRING, 0, (LPARAM)"{item}");\n'
             
             elif comp_type == 'panel':
-                text = props.get('text', 'Panel')
+                text = props.get('text', 'Group')
                 text = text.replace('"', '\\"')
                 code += f"""
     // Panel (Group Box)
-    g_Controls[{resource_id}] = CreateWindow(L"BUTTON", L"{text}",
+    g_Controls[{resource_id}] = CreateWindow("BUTTON", "{text}",
         WS_VISIBLE | WS_CHILD | BS_GROUPBOX,
         {x}, {y}, {width}, {height},
         hwnd, (HMENU){resource_id}, g_hInst, NULL);
@@ -283,148 +231,3 @@ void CreateControls(HWND hwnd)
 """
         
         return code
-    
-    def _generate_button(self, component):
-        """Генерация кнопки"""
-        props = component.get('properties', {})
-        text = props.get('text', 'Button')
-        x = props.get('x', 50)
-        y = props.get('y', 50)
-        width = props.get('width', 100)
-        height = props.get('height', 35)
-        
-        return f"""
-    // Button: {text}
-    CreateWindow(L"BUTTON", L"{text}",
-        WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
-        {x}, {y}, {width}, {height},
-        hwnd, (HMENU){component['resource_id']}, g_hInst, NULL);
-"""
-    
-    def _generate_label(self, component):
-        """Генерация метки"""
-        props = component.get('properties', {})
-        text = props.get('text', 'Label')
-        x = props.get('x', 50)
-        y = props.get('y', 50)
-        width = props.get('width', 100)
-        height = props.get('height', 25)
-        
-        return f"""
-    // Label: {text}
-    CreateWindow(L"STATIC", L"{text}",
-        WS_VISIBLE | WS_CHILD,
-        {x}, {y}, {width}, {height},
-        hwnd, (HMENU){component['resource_id']}, g_hInst, NULL);
-"""
-    
-    def _generate_textbox(self, component):
-        """Генерация текстового поля"""
-        props = component.get('properties', {})
-        placeholder = props.get('placeholder', 'Enter text')
-        x = props.get('x', 50)
-        y = props.get('y', 50)
-        width = props.get('width', 150)
-        height = props.get('height', 30)
-        
-        return f"""
-    // TextBox: {placeholder}
-    CreateWindow(L"EDIT", L"{placeholder}",
-        WS_VISIBLE | WS_CHILD | WS_BORDER | ES_AUTOHSCROLL,
-        {x}, {y}, {width}, {height},
-        hwnd, (HMENU){component['resource_id']}, g_hInst, NULL);
-"""
-    
-    def _generate_window(self, component):
-        """Генерация дочернего окна"""
-        props = component.get('properties', {})
-        title = props.get('title', 'Window')
-        x = props.get('x', 50)
-        y = props.get('y', 50)
-        width = props.get('width', 400)
-        height = props.get('height', 300)
-        
-        return f"""
-    // Child Window: {title}
-    CreateWindow(L"STATIC", L"{title}",
-        WS_VISIBLE | WS_CHILD | WS_BORDER,
-        {x}, {y}, {width}, {height},
-        hwnd, (HMENU){component['resource_id']}, g_hInst, NULL);
-"""
-    
-    def _generate_checkbox(self, component):
-        """Генерация чекбокса"""
-        props = component.get('properties', {})
-        text = props.get('text', 'Checkbox')
-        x = props.get('x', 50)
-        y = props.get('y', 50)
-        width = props.get('width', 120)
-        height = props.get('height', 25)
-        checked = "BST_CHECKED" if props.get('checked', False) else "BST_UNCHECKED"
-        
-        return f"""
-    // Checkbox: {text}
-    HWND hCheck = CreateWindow(L"BUTTON", L"{text}",
-        WS_VISIBLE | WS_CHILD | BS_AUTOCHECKBOX,
-        {x}, {y}, {width}, {height},
-        hwnd, (HMENU){component['resource_id']}, g_hInst, NULL);
-    SendMessage(hCheck, BM_SETCHECK, {checked}, 0);
-"""
-    
-    def _generate_radiobutton(self, component):
-        """Генерация радио-кнопки"""
-        props = component.get('properties', {})
-        text = props.get('text', 'Radio')
-        x = props.get('x', 50)
-        y = props.get('y', 50)
-        width = props.get('width', 120)
-        height = props.get('height', 25)
-        selected = "BST_CHECKED" if props.get('selected', False) else "BST_UNCHECKED"
-        
-        return f"""
-    // RadioButton: {text}
-    HWND hRadio = CreateWindow(L"BUTTON", L"{text}",
-        WS_VISIBLE | WS_CHILD | BS_AUTORADIOBUTTON,
-        {x}, {y}, {width}, {height},
-        hwnd, (HMENU){component['resource_id']}, g_hInst, NULL);
-    SendMessage(hRadio, BM_SETCHECK, {selected}, 0);
-"""
-    
-    def _generate_listbox(self, component):
-        """Генерация списка"""
-        props = component.get('properties', {})
-        items = props.get('items', ['Item 1', 'Item 2', 'Item 3'])
-        x = props.get('x', 50)
-        y = props.get('y', 50)
-        width = props.get('width', 150)
-        height = props.get('height', 100)
-        
-        code = f"""
-    // ListBox
-    HWND hList = CreateWindow(L"LISTBOX", NULL,
-        WS_VISIBLE | WS_CHILD | WS_BORDER | WS_VSCROLL | LBS_NOTIFY,
-        {x}, {y}, {width}, {height},
-        hwnd, (HMENU){component['resource_id']}, g_hInst, NULL);
-"""
-        for item in items:
-            item = item.replace('"', '\\"')
-            code += f'    SendMessage(hList, LB_ADDSTRING, 0, (LPARAM)L"{item}");\n'
-        
-        return code
-    
-    def _generate_panel(self, component):
-        """Генерация панели (группы)"""
-        props = component.get('properties', {})
-        text = props.get('text', 'Panel')
-        x = props.get('x', 50)
-        y = props.get('y', 50)
-        width = props.get('width', 200)
-        height = props.get('height', 150)
-        
-        return f"""
-    // Panel (Group Box): {text}
-    CreateWindow(L"BUTTON", L"{text}",
-        WS_VISIBLE | WS_CHILD | BS_GROUPBOX,
-        {x}, {y}, {width}, {height},
-        hwnd, (HMENU){component['resource_id']}, g_hInst, NULL);
-"""
