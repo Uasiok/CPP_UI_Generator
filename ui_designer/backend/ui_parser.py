@@ -7,11 +7,17 @@ class UIParser:
         <!DOCTYPE html>
         <html>
         <head>
+            <meta charset="UTF-8">
             <style>
+                * {
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
+                }
                 .preview-container {
                     position: relative;
                     background: #f5f5f5;
-                    min-height: 400px;
+                    min-height: 500px;
                     border: 2px solid #ccc;
                     border-radius: 8px;
                     overflow: auto;
@@ -91,19 +97,22 @@ class UIParser:
             width = props.get('width', 100)
             height = props.get('height', 30)
             text = props.get('text', '')
+            title = props.get('title', '')
             placeholder = props.get('placeholder', '')
             items = props.get('items', [])
+            checked = props.get('checked', False)
+            selected = props.get('selected', False)
             
             if comp_type == 'button':
                 html += f"""
-                <div class="ui-component button" style="left: {x}px; top: {y}px;">
+                <button class="ui-component button" style="left: {x}px; top: {y}px; width: {width}px; height: {height}px;">
                     {text}
-                </div>
+                </button>
                 """
             
             elif comp_type == 'label':
                 html += f"""
-                <div class="ui-component label" style="left: {x}px; top: {y}px;">
+                <div class="ui-component label" style="left: {x}px; top: {y}px; width: {width}px;">
                     {text}
                 </div>
                 """
@@ -111,18 +120,18 @@ class UIParser:
             elif comp_type == 'textbox':
                 html += f"""
                 <input type="text" class="ui-component textbox" placeholder="{placeholder}" 
-                       style="left: {x}px; top: {y}px; width: {width}px;">
+                       style="left: {x}px; top: {y}px; width: {width}px; height: {height}px;">
                 """
             
             elif comp_type == 'window':
                 html += f"""
                 <div class="ui-component window" style="left: {x}px; top: {y}px; width: {width}px; height: {height}px;">
-                    <div class="window-title">{text}</div>
+                    <div class="window-title">{title}</div>
+                    <div style="padding: 10px;">Window Content</div>
                 </div>
                 """
             
             elif comp_type == 'checkbox':
-                checked = props.get('checked', False)
                 html += f"""
                 <div class="ui-component checkbox" style="left: {x}px; top: {y}px;">
                     <input type="checkbox" {'checked' if checked else ''}> {text}
@@ -130,10 +139,9 @@ class UIParser:
                 """
             
             elif comp_type == 'radiobutton':
-                selected = props.get('selected', False)
                 html += f"""
                 <div class="ui-component radiobutton" style="left: {x}px; top: {y}px;">
-                    <input type="radio" {'checked' if selected else ''}> {text}
+                    <input type="radio" name="radio_group" {'checked' if selected else ''}> {text}
                 </div>
                 """
             
@@ -147,7 +155,7 @@ class UIParser:
             elif comp_type == 'panel':
                 html += f"""
                 <div class="ui-component panel" style="left: {x}px; top: {y}px; width: {width}px; height: {height}px;">
-                    
+                    Panel Content
                 </div>
                 """
         
