@@ -200,6 +200,8 @@ void CreateControls(HWND hwnd)
             
             if comp_type == 'button':
                 text = props.get('text', 'Button')
+                # Экранируем кавычки
+                text = text.replace('"', '\\"')
                 code += f"""
     // Button: {text}
     g_Controls[{resource_id}] = CreateWindow(L"BUTTON", L"{text}",
@@ -209,6 +211,7 @@ void CreateControls(HWND hwnd)
 """
             elif comp_type == 'label':
                 text = props.get('text', 'Label')
+                text = text.replace('"', '\\"')
                 code += f"""
     // Label: {text}
     g_Controls[{resource_id}] = CreateWindow(L"STATIC", L"{text}",
@@ -218,6 +221,7 @@ void CreateControls(HWND hwnd)
 """
             elif comp_type == 'textbox':
                 placeholder = props.get('placeholder', 'Enter text')
+                placeholder = placeholder.replace('"', '\\"')
                 code += f"""
     // TextBox: {placeholder}
     g_Controls[{resource_id}] = CreateWindow(L"EDIT", L"{placeholder}",
@@ -227,6 +231,7 @@ void CreateControls(HWND hwnd)
 """
             elif comp_type == 'checkbox':
                 text = props.get('text', 'Checkbox')
+                text = text.replace('"', '\\"')
                 checked = "BST_CHECKED" if props.get('checked', False) else "BST_UNCHECKED"
                 code += f"""
     // Checkbox: {text}
@@ -238,6 +243,7 @@ void CreateControls(HWND hwnd)
 """
             elif comp_type == 'radiobutton':
                 text = props.get('text', 'Radio')
+                text = text.replace('"', '\\"')
                 selected = "BST_CHECKED" if props.get('selected', False) else "BST_UNCHECKED"
                 code += f"""
     // RadioButton: {text}
@@ -256,11 +262,13 @@ void CreateControls(HWND hwnd)
         {x}, {y}, {width}, {height},
         hwnd, (HMENU){resource_id}, g_hInst, NULL);
 """
-                for i, item in enumerate(items):
+                for item in items:
+                    item = item.replace('"', '\\"')
                     code += f'    SendMessage(g_Controls[{resource_id}], LB_ADDSTRING, 0, (LPARAM)L"{item}");\n'
             
             elif comp_type == 'panel':
                 text = props.get('text', 'Panel')
+                text = text.replace('"', '\\"')
                 code += f"""
     // Panel (Group Box)
     g_Controls[{resource_id}] = CreateWindow(L"BUTTON", L"{text}",
@@ -277,7 +285,7 @@ void CreateControls(HWND hwnd)
         return code
     
     def _generate_button(self, component):
-        """Генерация кнопки (используется в других методах)"""
+        """Генерация кнопки"""
         props = component.get('properties', {})
         text = props.get('text', 'Button')
         x = props.get('x', 50)
@@ -328,7 +336,7 @@ void CreateControls(HWND hwnd)
 """
     
     def _generate_window(self, component):
-        """Генерация окна (главное окно уже создано, это для дочерних окон)"""
+        """Генерация дочернего окна"""
         props = component.get('properties', {})
         title = props.get('title', 'Window')
         x = props.get('x', 50)
@@ -399,6 +407,7 @@ void CreateControls(HWND hwnd)
         hwnd, (HMENU){component['resource_id']}, g_hInst, NULL);
 """
         for item in items:
+            item = item.replace('"', '\\"')
             code += f'    SendMessage(hList, LB_ADDSTRING, 0, (LPARAM)L"{item}");\n'
         
         return code
