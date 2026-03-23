@@ -5,6 +5,7 @@ class UIDesigner {
         this.nextId = 1;
         this.dragEnabled = false;
         this.dragStart = { x: 0, y: 0 };
+        this.currentDragComponent = null;
         
         this.init();
         this.loadComponents();
@@ -15,68 +16,129 @@ class UIDesigner {
         this.codeOutput = document.getElementById('codeOutput');
         this.propertiesContent = document.getElementById('propertiesContent');
         
+        if (!this.canvas) {
+            console.error('Canvas element not found!');
+            return;
+        }
+        
         this.setupEventListeners();
         this.setupDragAndDrop();
     }
     
     setupEventListeners() {
         // Save project
-        document.getElementById('saveProjectBtn').addEventListener('click', () => this.saveProject());
+        const saveBtn = document.getElementById('saveProjectBtn');
+        if (saveBtn) saveBtn.addEventListener('click', () => this.saveProject());
         
         // Load project
-        document.getElementById('loadProjectBtn').addEventListener('click', () => this.loadProject());
+        const loadBtn = document.getElementById('loadProjectBtn');
+        if (loadBtn) loadBtn.addEventListener('click', () => this.loadProject());
         
         // Generate code
-        document.getElementById('generateCodeBtn').addEventListener('click', () => this.generateCode());
+        const generateBtn = document.getElementById('generateCodeBtn');
+        if (generateBtn) generateBtn.addEventListener('click', () => this.generateCode());
         
         // Export code
-        document.getElementById('exportCodeBtn').addEventListener('click', () => this.exportCode());
+        const exportBtn = document.getElementById('exportCodeBtn');
+        if (exportBtn) exportBtn.addEventListener('click', () => this.exportCode());
         
         // Preview
-        document.getElementById('previewBtn').addEventListener('click', () => this.showPreview());
+        const previewBtn = document.getElementById('previewBtn');
+        if (previewBtn) previewBtn.addEventListener('click', () => this.showPreview());
         
         // Copy code
-        document.getElementById('copyCodeBtn').addEventListener('click', () => this.copyCode());
+        const copyBtn = document.getElementById('copyCodeBtn');
+        if (copyBtn) copyBtn.addEventListener('click', () => this.copyCode());
         
         // Modal close
         const modal = document.getElementById('previewModal');
-        const closeBtn = modal.querySelector('.close');
-        closeBtn.onclick = () => modal.style.display = 'none';
-        window.onclick = (event) => {
-            if (event.target === modal) modal.style.display = 'none';
-        };
+        if (modal) {
+            const closeBtn = modal.querySelector('.close');
+            if (closeBtn) closeBtn.onclick = () => modal.style.display = 'none';
+            window.onclick = (event) => {
+                if (event.target === modal) modal.style.display = 'none';
+            };
+        }
         
         // Canvas click to deselect
-        this.canvas.addEventListener('click', (e) => {
-            if (e.target === this.canvas) {
-                this.selectComponent(null);
-            }
-        });
+        if (this.canvas) {
+            this.canvas.addEventListener('click', (e) => {
+                if (e.target === this.canvas) {
+                    this.selectComponent(null);
+                }
+            });
+        }
     }
     
     setupDragAndDrop() {
-        const components = document.querySelectorAll('.component-item');
-        components.forEach(comp => {
+        // Получаем все компоненты из тулбокса
+        const componentItems = document.querySelectorAll('.component-item');
+        
+        componentItems.forEach(comp => {
+            // Добавляем атрибут draggable
+            comp.setAttribute('draggable', 'true');
+            
+            // Обработка начала перетаскивания
             comp.addEventListener('dragstart', (e) => {
-                e.dataTransfer.setData('type', comp.dataset.type);
+                const type = comp.dataset.type;
+                e.dataTransfer.setData('text/plain', type);
                 e.dataTransfer.effectAllowed = 'copy';
+                
+                // Создаем призрачное изображение
+                const dragImage = comp.cloneNode(true);
+                dragImage.style.position = 'absolute';
+                dragImage.style.top = '-1000px';
+                document.body.appendChild(dragImage);
+                e.dataTransfer.setDragImage(dragImage, 0, 0);
+                setTimeout(() => document.body.removeChild(dragImage), 0);
+                
+                console.log('Drag start:', type);
+            });
+            
+            // Убираем стандартный курсор
+            comp.addEventListener('dragend', (e) => {
+                console.log('Drag end');
             });
         });
         
-        this.canvas.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'copy';
-        });
-        
-        this.canvas.addEventListener('drop', (e) => {
-            e.preventDefault();
-            const rect = this.canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            const type = e.dataTransfer.getData('type');
+        // Настройка canvas для приема перетаскивания
+        if (this.canvas) {
+            this.canvas.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'copy';
+                this.canvas.style.borderColor = '#007acc';
+            });
             
-            this.addComponent(type, x, y);
-        });
+            this.canvas.addEventListener('dragleave', (e) => {
+                this.canvas.style.borderColor = '#3e3e3e';
+            });
+            
+            this.canvas.addEventListener('drop', (e) => {
+                e.preventDefault();
+                this.canvas.style.borderColor = '#3e3e3e';
+                
+                // Получаем тип компонента
+                const type = e.dataTransfer.getData('text/plain');
+                if (!type) return;
+                
+                // Вычисляем позицию для нового компонента
+                const rect = this.canvas.getBoundingClientRect();
+                const scrollLeft = this.canvas.scrollLeft;
+                const scrollTop = this.canvas.scrollTop;
+                
+                let x = e.clientX - rect.left + scrollLeft;
+                let y = e.clientY - rect.top + scrollTop;
+                
+                // Ограничиваем позицию
+                x = Math.max(10, Math.min(x, rect.width - 100));
+                y = Math.max(10, Math.min(y, rect.height - 50));
+                
+                console.log(`Dropping ${type} at (${x}, ${y})`);
+                
+                // Добавляем компонент
+                this.addComponent(type, x, y);
+            });
+        }
     }
     
     addComponent(type, x, y) {
@@ -89,21 +151,78 @@ class UIDesigner {
         this.components.push(component);
         this.renderComponent(component);
         this.saveToBackend();
+        
+        console.log('Component added:', component);
     }
     
     getDefaultProperties(type, x, y) {
         const defaults = {
-            window: { title: 'Window', width: 400, height: 300, x: x, y: y },
-            button: { text: 'Button', width: 100, height: 30, x: x, y: y },
-            label: { text: 'Label', width: 80, height: 20, x: x, y: y },
-            textbox: { placeholder: 'Enter text', width: 200, height: 30, x: x, y: y },
-            checkbox: { text: 'Checkbox', checked: false, width: 100, height: 25, x: x, y: y },
-            radiobutton: { text: 'Radio', selected: false, width: 100, height: 25, x: x, y: y },
-            listbox: { items: ['Item 1', 'Item 2', 'Item 3'], width: 150, height: 100, x: x, y: y },
-            panel: { width: 300, height: 200, x: x, y: y }
+            window: { 
+                title: 'Window', 
+                width: 300, 
+                height: 200, 
+                x: x, 
+                y: y 
+            },
+            button: { 
+                text: 'Button', 
+                width: 100, 
+                height: 30, 
+                x: x, 
+                y: y 
+            },
+            label: { 
+                text: 'Label', 
+                width: 80, 
+                height: 20, 
+                x: x, 
+                y: y 
+            },
+            textbox: { 
+                placeholder: 'Enter text', 
+                width: 150, 
+                height: 30, 
+                x: x, 
+                y: y 
+            },
+            checkbox: { 
+                text: 'Checkbox', 
+                checked: false, 
+                width: 100, 
+                height: 25, 
+                x: x, 
+                y: y 
+            },
+            radiobutton: { 
+                text: 'Radio', 
+                selected: false, 
+                width: 100, 
+                height: 25, 
+                x: x, 
+                y: y 
+            },
+            listbox: { 
+                items: ['Item 1', 'Item 2', 'Item 3'], 
+                width: 150, 
+                height: 100, 
+                x: x, 
+                y: y 
+            },
+            panel: { 
+                width: 200, 
+                height: 150, 
+                x: x, 
+                y: y 
+            }
         };
         
-        return defaults[type] || { text: type, width: 100, height: 30, x: x, y: y };
+        return defaults[type] || { 
+            text: type, 
+            width: 100, 
+            height: 30, 
+            x: x, 
+            y: y 
+        };
     }
     
     renderComponent(component) {
@@ -114,15 +233,43 @@ class UIDesigner {
         div.style.top = `${component.properties.y}px`;
         div.style.width = `${component.properties.width}px`;
         div.style.height = `${component.properties.height}px`;
-        div.textContent = component.properties.text || component.properties.title || component.type;
         
+        // Устанавливаем текст в зависимости от типа
+        let displayText = '';
+        if (component.type === 'button' || component.type === 'label' || component.type === 'checkbox' || component.type === 'radiobutton') {
+            displayText = component.properties.text || component.type;
+        } else if (component.type === 'window') {
+            displayText = component.properties.title || 'Window';
+        } else {
+            displayText = component.type;
+        }
+        div.textContent = displayText;
+        
+        // Добавляем иконку для визуального различия
+        const iconMap = {
+            'window': '📂',
+            'button': '🔘',
+            'label': '📝',
+            'textbox': '📧',
+            'checkbox': '✅',
+            'radiobutton': '🔘',
+            'listbox': '📋',
+            'panel': '▯'
+        };
+        if (iconMap[component.type]) {
+            div.innerHTML = `${iconMap[component.type]} ${displayText}`;
+        }
+        
+        // Обработка клика для выбора
         div.addEventListener('click', (e) => {
             e.stopPropagation();
             this.selectComponent(component);
         });
         
+        // Обработка перетаскивания внутри canvas
         div.addEventListener('mousedown', (e) => {
-            if (e.target === div) {
+            if (e.target === div || div.contains(e.target)) {
+                e.stopPropagation();
                 this.startDrag(component, e);
             }
         });
@@ -133,7 +280,7 @@ class UIDesigner {
     selectComponent(component) {
         this.selectedComponent = component;
         
-        // Remove selection highlight
+        // Удаляем выделение со всех компонентов
         document.querySelectorAll('.ui-component').forEach(el => {
             el.classList.remove('selected');
         });
@@ -154,6 +301,10 @@ class UIDesigner {
                 <label>Type:</label>
                 <input type="text" value="${component.type}" disabled>
             </div>
+            <div class="property-group">
+                <label>ID:</label>
+                <input type="text" value="${component.id}" disabled>
+            </div>
         `;
         
         for (let [key, value] of Object.entries(props)) {
@@ -162,7 +313,7 @@ class UIDesigner {
             if (typeof value === 'boolean') {
                 html += `
                     <div class="property-group">
-                        <label>${key}:</label>
+                        <label>${this.capitalize(key)}:</label>
                         <input type="checkbox" ${value ? 'checked' : ''} 
                                onchange="uiDesigner.updateProperty(${component.id}, '${key}', this.checked)">
                     </div>
@@ -170,16 +321,23 @@ class UIDesigner {
             } else if (Array.isArray(value)) {
                 html += `
                     <div class="property-group">
-                        <label>${key}:</label>
-                        <textarea rows="3" onchange="uiDesigner.updateProperty(${component.id}, '${key}', this.value.split('\\n'))">${value.join('\n')}</textarea>
+                        <label>${this.capitalize(key)} (one per line):</label>
+                        <textarea rows="4" onchange="uiDesigner.updateProperty(${component.id}, '${key}', this.value.split('\\n').filter(v => v.trim()))">${value.join('\n')}</textarea>
+                    </div>
+                `;
+            } else if (typeof value === 'number') {
+                html += `
+                    <div class="property-group">
+                        <label>${this.capitalize(key)}:</label>
+                        <input type="number" value="${value}" 
+                               onchange="uiDesigner.updateProperty(${component.id}, '${key}', parseInt(this.value))">
                     </div>
                 `;
             } else {
                 html += `
                     <div class="property-group">
-                        <label>${key}:</label>
-                        <input type="${typeof value === 'number' ? 'number' : 'text'}" 
-                               value="${value}" 
+                        <label>${this.capitalize(key)}:</label>
+                        <input type="text" value="${value}" 
                                onchange="uiDesigner.updateProperty(${component.id}, '${key}', this.value)">
                     </div>
                 `;
@@ -195,25 +353,66 @@ class UIDesigner {
                 <label>Y Position:</label>
                 <input type="number" value="${props.y}" onchange="uiDesigner.updateProperty(${component.id}, 'y', parseInt(this.value))">
             </div>
-            <button class="btn-small" onclick="uiDesigner.deleteComponent(${component.id})" style="background: #dc3545; margin-top: 10px;">
-                Delete Component
+            <div class="property-group">
+                <label>Width:</label>
+                <input type="number" value="${props.width}" onchange="uiDesigner.updateProperty(${component.id}, 'width', parseInt(this.value))">
+            </div>
+            <div class="property-group">
+                <label>Height:</label>
+                <input type="number" value="${props.height}" onchange="uiDesigner.updateProperty(${component.id}, 'height', parseInt(this.value))">
+            </div>
+            <button class="btn-small" onclick="uiDesigner.deleteComponent(${component.id})" style="background: #dc3545; margin-top: 10px; width: 100%;">
+                🗑️ Delete Component
             </button>
         `;
         
         this.propertiesContent.innerHTML = html;
     }
     
+    capitalize(str) {
+        return str.charAt(0).toUpperCase() + str.slice(1);
+    }
+    
     updateProperty(id, key, value) {
         const component = this.components.find(c => c.id === id);
         if (component) {
-            if (key === 'items' && typeof value === 'string') {
-                value = value.split('\n').filter(v => v.trim());
-            }
             component.properties[key] = value;
-            this.updateComponentPosition(id, component.properties.x, component.properties.y);
+            
+            // Обновляем отображение
+            const el = document.getElementById(`comp-${id}`);
+            if (el) {
+                el.style.left = `${component.properties.x}px`;
+                el.style.top = `${component.properties.y}px`;
+                el.style.width = `${component.properties.width}px`;
+                el.style.height = `${component.properties.height}px`;
+                
+                // Обновляем текст
+                let displayText = '';
+                if (component.type === 'button' || component.type === 'label' || component.type === 'checkbox' || component.type === 'radiobutton') {
+                    displayText = component.properties.text || component.type;
+                } else if (component.type === 'window') {
+                    displayText = component.properties.title || 'Window';
+                } else {
+                    displayText = component.type;
+                }
+                
+                const iconMap = {
+                    'window': '📂',
+                    'button': '🔘',
+                    'label': '📝',
+                    'textbox': '📧',
+                    'checkbox': '✅',
+                    'radiobutton': '🔘',
+                    'listbox': '📋',
+                    'panel': '▯'
+                };
+                el.innerHTML = `${iconMap[component.type] || ''} ${displayText}`;
+            }
+            
             this.saveToBackend();
-            this.renderAllComponents();
-            this.selectComponent(component);
+            if (this.selectedComponent?.id === id) {
+                this.showProperties(component);
+            }
         }
     }
     
@@ -226,40 +425,56 @@ class UIDesigner {
     }
     
     deleteComponent(id) {
-        this.components = this.components.filter(c => c.id !== id);
-        this.renderAllComponents();
-        if (this.selectedComponent?.id === id) {
-            this.selectComponent(null);
+        if (confirm('Are you sure you want to delete this component?')) {
+            this.components = this.components.filter(c => c.id !== id);
+            const el = document.getElementById(`comp-${id}`);
+            if (el) el.remove();
+            
+            if (this.selectedComponent?.id === id) {
+                this.selectComponent(null);
+            }
+            this.saveToBackend();
         }
-        this.saveToBackend();
     }
     
     renderAllComponents() {
+        if (!this.canvas) return;
         this.canvas.innerHTML = '';
         this.components.forEach(comp => this.renderComponent(comp));
     }
     
     startDrag(component, e) {
         this.dragEnabled = true;
-        this.dragStart = {
-            x: e.clientX - component.properties.x,
-            y: e.clientY - component.properties.y
-        };
+        this.currentDragComponent = component;
+        
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const startLeft = component.properties.x;
+        const startTop = component.properties.y;
         
         const onMouseMove = (moveEvent) => {
-            if (this.dragEnabled) {
-                const newX = moveEvent.clientX - this.dragStart.x;
-                const newY = moveEvent.clientY - this.dragStart.y;
+            if (this.dragEnabled && this.currentDragComponent) {
+                const deltaX = moveEvent.clientX - startX;
+                const deltaY = moveEvent.clientY - startY;
                 
-                component.properties.x = Math.max(0, newX);
-                component.properties.y = Math.max(0, newY);
+                const newX = Math.max(0, startLeft + deltaX);
+                const newY = Math.max(0, startTop + deltaY);
                 
-                this.updateComponentPosition(component.id, component.properties.x, component.properties.y);
+                component.properties.x = newX;
+                component.properties.y = newY;
+                
+                this.updateComponentPosition(component.id, newX, newY);
+                
+                // Обновляем панель свойств если этот компонент выбран
+                if (this.selectedComponent?.id === component.id) {
+                    this.showProperties(component);
+                }
             }
         };
         
         const onMouseUp = () => {
             this.dragEnabled = false;
+            this.currentDragComponent = null;
             document.removeEventListener('mousemove', onMouseMove);
             document.removeEventListener('mouseup', onMouseUp);
             this.saveToBackend();
@@ -271,11 +486,15 @@ class UIDesigner {
     
     async saveToBackend() {
         try {
-            await fetch('/api/components', {
+            const response = await fetch('/api/components', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(this.components)
             });
+            
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
         } catch (error) {
             console.error('Error saving to backend:', error);
         }
@@ -286,7 +505,9 @@ class UIDesigner {
             const response = await fetch('/api/components');
             if (response.ok) {
                 this.components = await response.json();
-                this.nextId = Math.max(...this.components.map(c => c.id), 0) + 1;
+                if (this.components.length > 0) {
+                    this.nextId = Math.max(...this.components.map(c => c.id), 0) + 1;
+                }
                 this.renderAllComponents();
             }
         } catch (error) {
@@ -295,12 +516,9 @@ class UIDesigner {
     }
     
     async saveProject() {
-        const project = {
-            name: prompt('Enter project name:', 'MyApplication'),
-            components: this.components
-        };
+        const projectName = prompt('Enter project name:', 'MyApplication');
         
-        if (project.name) {
+        if (projectName) {
             try {
                 const response = await fetch('/api/save');
                 const data = await response.json();
@@ -308,11 +526,14 @@ class UIDesigner {
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `${project.name}.ui.json`;
+                a.download = `${projectName}.ui.json`;
                 a.click();
                 URL.revokeObjectURL(url);
+                
+                alert(`Project "${projectName}" saved successfully!`);
             } catch (error) {
                 console.error('Error saving project:', error);
+                alert('Error saving project');
             }
         }
     }
@@ -326,9 +547,12 @@ class UIDesigner {
             const text = await file.text();
             const project = JSON.parse(text);
             this.components = project.components || [];
-            this.nextId = Math.max(...this.components.map(c => c.id), 0) + 1;
+            if (this.components.length > 0) {
+                this.nextId = Math.max(...this.components.map(c => c.id), 0) + 1;
+            }
             this.renderAllComponents();
             this.saveToBackend();
+            alert('Project loaded successfully!');
         };
         input.click();
     }
@@ -345,10 +569,16 @@ class UIDesigner {
             });
             
             const data = await response.json();
-            this.codeOutput.textContent = data.code;
+            if (data.success) {
+                this.codeOutput.textContent = data.code;
+                alert('Code generated successfully!');
+            } else {
+                this.codeOutput.textContent = 'Error generating code: ' + (data.error || 'Unknown error');
+            }
         } catch (error) {
             console.error('Error generating code:', error);
             this.codeOutput.textContent = 'Error generating code. Make sure the backend is running.';
+            alert('Error generating code');
         }
     }
     
@@ -365,26 +595,48 @@ class UIDesigner {
             });
             
             const data = await response.json();
-            const modal = document.getElementById('previewModal');
-            const previewContent = document.getElementById('previewContent');
-            previewContent.innerHTML = data.html;
-            modal.style.display = 'block';
+            if (data.success) {
+                const modal = document.getElementById('previewModal');
+                const previewContent = document.getElementById('previewContent');
+                previewContent.innerHTML = data.html;
+                modal.style.display = 'block';
+            } else {
+                alert('Error generating preview: ' + (data.error || 'Unknown error'));
+            }
         } catch (error) {
             console.error('Error showing preview:', error);
+            alert('Error showing preview');
         }
     }
     
     copyCode() {
         const code = this.codeOutput.textContent;
-        navigator.clipboard.writeText(code).then(() => {
-            alert('Code copied to clipboard!');
-        });
+        if (code && code !== 'No code generated yet') {
+            navigator.clipboard.writeText(code).then(() => {
+                alert('Code copied to clipboard!');
+            });
+        } else {
+            alert('No code to copy. Generate code first.');
+        }
     }
 }
 
 // Initialize the application
 let uiDesigner;
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM loaded, initializing UI Designer...');
     uiDesigner = new UIDesigner();
-    window.uiDesigner = uiDesigner; // Make it accessible globally
+    window.uiDesigner = uiDesigner;
+    
+    // Проверяем наличие canvas
+    const canvas = document.getElementById('canvas');
+    if (canvas) {
+        console.log('Canvas found, size:', canvas.clientWidth, 'x', canvas.clientHeight);
+    } else {
+        console.error('Canvas element not found!');
+    }
+    
+    // Проверяем компоненты в тулбоксе
+    const components = document.querySelectorAll('.component-item');
+    console.log('Found components in toolbox:', components.length);
 });
