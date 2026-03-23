@@ -16,10 +16,16 @@ class CppCodeGenerator:
     def generate_code(self, project_name, components):
         """Генерация полного C++ кода"""
         
+        # Очищаем имя проекта от специальных символов
+        project_name = ''.join(c for c in project_name if c.isalnum() or c == '_')
+        if not project_name:
+            project_name = "MyApplication"
+        
         code = f"""// Generated UI Code for {project_name}
 // This code uses standard C++ libraries for UI rendering
 // Supports Windows console UI with Windows API (for Windows)
 // For cross-platform, uses standard output with ANSI escape codes
+// Compile with: g++ -o app.exe {project_name}.cpp -std=c++17
 
 #include <iostream>
 #include <vector>
@@ -37,10 +43,10 @@ namespace Colors {{
     const string RED = "\\033[31m";
     const string GREEN = "\\033[32m";
     const string YELLOW = "\\033[33m";
-    string BLUE = "\\033[34m";
-    string MAGENTA = "\\033[35m";
-    string CYAN = "\\033[36m";
-    string WHITE = "\\033[37m";
+    const string BLUE = "\\033[34m";
+    const string MAGENTA = "\\033[35m";
+    const string CYAN = "\\033[36m";
+    const string WHITE = "\\033[37m";
     
     const string BG_RED = "\\033[41m";
     const string BG_GREEN = "\\033[42m";
@@ -99,6 +105,9 @@ public:
         y = props.get('y', 10)
         width = props.get('width', 15)
         
+        # Экранируем кавычки в тексте
+        text = text.replace('"', '\\"')
+        
         return f"""
 class Button{component['id']} : public UIComponent {{
 public:
@@ -132,6 +141,9 @@ public:
         x = props.get('x', 10)
         y = props.get('y', 10)
         
+        # Экранируем кавычки в тексте
+        text = text.replace('"', '\\"')
+        
         return f"""
 class Label{component['id']} : public UIComponent {{
 public:
@@ -157,6 +169,9 @@ public:
         x = props.get('x', 10)
         y = props.get('y', 10)
         width = props.get('width', 30)
+        
+        # Экранируем кавычки в тексте
+        placeholder = placeholder.replace('"', '\\"')
         
         return f"""
 class TextBox{component['id']} : public UIComponent {{
@@ -204,6 +219,9 @@ public:
         y = props.get('y', 0)
         width = props.get('width', 60)
         height = props.get('height', 20)
+        
+        # Экранируем кавычки в тексте
+        title = title.replace('"', '\\"')
         
         return f"""
 class Window{component['id']} : public UIComponent {{
@@ -274,6 +292,9 @@ public:
         y = props.get('y', 10)
         checked = props.get('checked', False)
         
+        # Экранируем кавычки в тексте
+        text = text.replace('"', '\\"')
+        
         return f"""
 class CheckBox{component['id']} : public UIComponent {{
 private:
@@ -310,6 +331,9 @@ public:
         x = props.get('x', 10)
         y = props.get('y', 10)
         selected = props.get('selected', False)
+        
+        # Экранируем кавычки в тексте
+        text = text.replace('"', '\\"')
         
         return f"""
 class RadioButton{component['id']} : public UIComponent {{
@@ -348,6 +372,8 @@ public:
         y = props.get('y', 10)
         height = props.get('height', 5)
         
+        # Экранируем кавычки в элементах списка
+        items = [item.replace('"', '\\"') for item in items]
         items_str = ', '.join([f'"{item}"' for item in items])
         
         return f"""
@@ -448,10 +474,13 @@ public:
     
     def _generate_default(self, component):
         """Генерация дефолтного компонента"""
+        text = component.get('properties', {}).get('text', 'Component')
+        text = text.replace('"', '\\"')
+        
         return f"""
 class Component{component['id']} : public UIComponent {{
 public:
-    Component{component['id']}(int x, int y) : UIComponent(x, y, 10, 1, "Component") {{}}
+    Component{component['id']}(int x, int y) : UIComponent(x, y, 10, 1, "{text}") {{}}
     
     void draw() override {{
         if (!visible) return;
@@ -484,6 +513,16 @@ public:
             y = props.get('y', 10)
             comp_type = component.get('type', 'button')
             comp_class = f"{comp_type.capitalize()}{component['id']}"
+            
+            # Для типов, которые начинаются с заглавной буквы
+            if comp_type == 'textbox':
+                comp_class = f"TextBox{component['id']}"
+            elif comp_type == 'checkbox':
+                comp_class = f"CheckBox{component['id']}"
+            elif comp_type == 'radiobutton':
+                comp_class = f"RadioButton{component['id']}"
+            elif comp_type == 'listbox':
+                comp_class = f"ListBox{component['id']}"
             
             code += f"""
         auto {comp_type}{component['id']} = make_unique<{comp_class}>({x}, {y});
