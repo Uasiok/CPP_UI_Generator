@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>C++ UI Designer</title>
+    <title>C++ Win32 GUI Designer</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
@@ -12,8 +12,8 @@
         <!-- Header -->
         <header class="header">
             <h1>
-                <i class="fas fa-code"></i>
-                C++ UI Designer
+                <i class="fas fa-window-maximize"></i>
+                C++ Win32 GUI Designer
             </h1>
             <div class="header-actions">
                 <button id="saveProjectBtn" class="btn btn-secondary">
@@ -23,7 +23,7 @@
                     <i class="fas fa-folder-open"></i> Load
                 </button>
                 <button id="generateCodeBtn" class="btn btn-primary">
-                    <i class="fas fa-download"></i> Generate C++ Code
+                    <i class="fas fa-code"></i> Generate Win32 GUI Code
                 </button>
                 <button id="exportCodeBtn" class="btn btn-success">
                     <i class="fas fa-file-code"></i> Export
@@ -35,7 +35,7 @@
         <div class="main-content">
             <!-- Toolbox -->
             <div class="toolbox">
-                <h3><i class="fas fa-palette"></i> Components</h3>
+                <h3><i class="fas fa-palette"></i> Win32 Components</h3>
                 <div class="components-list">
                     <div class="component-item" data-type="window" draggable="true">
                         <i class="fas fa-window-maximize"></i>
@@ -67,12 +67,13 @@
                     </div>
                     <div class="component-item" data-type="panel" draggable="true">
                         <i class="fas fa-border-all"></i>
-                        <span>Panel</span>
+                        <span>Group Box</span>
                     </div>
                 </div>
                 <div style="padding: 10px; margin-top: 10px; border-top: 1px solid #3e3e3e;">
                     <p style="font-size: 12px; color: #9e9e9e; text-align: center;">
-                        <i class="fas fa-info-circle"></i> Drag components to canvas
+                        <i class="fas fa-info-circle"></i> Drag components to canvas<br>
+                        <i class="fas fa-window-restore"></i> Generates native Win32 GUI code
                     </p>
                 </div>
             </div>
@@ -80,7 +81,7 @@
             <!-- Canvas -->
             <div class="canvas-container">
                 <div class="canvas-header">
-                    <h3><i class="fas fa-paint-brush"></i> Design Canvas</h3>
+                    <h3><i class="fas fa-paint-brush"></i> Design Canvas (Window Preview)</h3>
                     <button id="previewBtn" class="btn-small">
                         <i class="fas fa-eye"></i> Preview
                     </button>
@@ -89,6 +90,9 @@
                     <div style="text-align: center; color: #9e9e9e; margin-top: 50px;">
                         <i class="fas fa-arrow-left" style="font-size: 48px;"></i>
                         <p>Drag components from the left panel and drop them here</p>
+                        <p style="font-size: 12px; margin-top: 20px;">
+                            <i class="fas fa-info-circle"></i> This represents your main window layout
+                        </p>
                     </div>
                 </div>
             </div>
@@ -105,26 +109,8 @@
         <!-- Code Preview -->
         <div class="code-preview">
             <div class="code-header">
-                <h3><i class="fas fa-code"></i> Generated C++ Code</h3>
+                <h3><i class="fas fa-code"></i> Generated Win32 C++ Code</h3>
                 <button id="copyCodeBtn" class="btn-small">
                     <i class="fas fa-copy"></i> Copy
                 </button>
             </div>
-            <pre id="codeOutput" class="code-content">No code generated yet</pre>
-        </div>
-    </div>
-
-    <!-- Modal for Preview -->
-    <div id="previewModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>UI Preview</h3>
-                <span class="close">&times;</span>
-            </div>
-            <div id="previewContent" class="modal-body"></div>
-        </div>
-    </div>
-
-    <script src="script.js"></script>
-</body>
-</html>
