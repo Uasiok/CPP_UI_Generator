@@ -71,37 +71,25 @@ class UIDesigner {
     }
     
     setupDragAndDrop() {
-        // Получаем все компоненты из тулбокса
         const componentItems = document.querySelectorAll('.component-item');
         
         componentItems.forEach(comp => {
-            // Добавляем атрибут draggable
             comp.setAttribute('draggable', 'true');
             
-            // Обработка начала перетаскивания
             comp.addEventListener('dragstart', (e) => {
                 const type = comp.dataset.type;
                 e.dataTransfer.setData('text/plain', type);
                 e.dataTransfer.effectAllowed = 'copy';
                 
-                // Создаем призрачное изображение
                 const dragImage = comp.cloneNode(true);
                 dragImage.style.position = 'absolute';
                 dragImage.style.top = '-1000px';
                 document.body.appendChild(dragImage);
                 e.dataTransfer.setDragImage(dragImage, 0, 0);
                 setTimeout(() => document.body.removeChild(dragImage), 0);
-                
-                console.log('Drag start:', type);
-            });
-            
-            // Убираем стандартный курсор
-            comp.addEventListener('dragend', (e) => {
-                console.log('Drag end');
             });
         });
         
-        // Настройка canvas для приема перетаскивания
         if (this.canvas) {
             this.canvas.addEventListener('dragover', (e) => {
                 e.preventDefault();
@@ -117,11 +105,9 @@ class UIDesigner {
                 e.preventDefault();
                 this.canvas.style.borderColor = '#3e3e3e';
                 
-                // Получаем тип компонента
                 const type = e.dataTransfer.getData('text/plain');
                 if (!type) return;
                 
-                // Вычисляем позицию для нового компонента
                 const rect = this.canvas.getBoundingClientRect();
                 const scrollLeft = this.canvas.scrollLeft;
                 const scrollTop = this.canvas.scrollTop;
@@ -129,13 +115,9 @@ class UIDesigner {
                 let x = e.clientX - rect.left + scrollLeft;
                 let y = e.clientY - rect.top + scrollTop;
                 
-                // Ограничиваем позицию
                 x = Math.max(10, Math.min(x, rect.width - 100));
                 y = Math.max(10, Math.min(y, rect.height - 50));
                 
-                console.log(`Dropping ${type} at (${x}, ${y})`);
-                
-                // Добавляем компонент
                 this.addComponent(type, x, y);
             });
         }
@@ -151,30 +133,28 @@ class UIDesigner {
         this.components.push(component);
         this.renderComponent(component);
         this.saveToBackend();
-        
-        console.log('Component added:', component);
     }
     
     getDefaultProperties(type, x, y) {
         const defaults = {
             window: { 
                 title: 'Window', 
-                width: 300, 
-                height: 200, 
+                width: 400, 
+                height: 300, 
                 x: x, 
                 y: y 
             },
             button: { 
                 text: 'Button', 
                 width: 100, 
-                height: 30, 
+                height: 35, 
                 x: x, 
                 y: y 
             },
             label: { 
                 text: 'Label', 
-                width: 80, 
-                height: 20, 
+                width: 100, 
+                height: 25, 
                 x: x, 
                 y: y 
             },
@@ -188,15 +168,15 @@ class UIDesigner {
             checkbox: { 
                 text: 'Checkbox', 
                 checked: false, 
-                width: 100, 
+                width: 120, 
                 height: 25, 
                 x: x, 
                 y: y 
             },
             radiobutton: { 
-                text: 'Radio', 
+                text: 'Radio Button', 
                 selected: false, 
-                width: 100, 
+                width: 120, 
                 height: 25, 
                 x: x, 
                 y: y 
@@ -209,6 +189,7 @@ class UIDesigner {
                 y: y 
             },
             panel: { 
+                text: 'Panel', 
                 width: 200, 
                 height: 150, 
                 x: x, 
@@ -234,18 +215,17 @@ class UIDesigner {
         div.style.width = `${component.properties.width}px`;
         div.style.height = `${component.properties.height}px`;
         
-        // Устанавливаем текст в зависимости от типа
         let displayText = '';
         if (component.type === 'button' || component.type === 'label' || component.type === 'checkbox' || component.type === 'radiobutton') {
             displayText = component.properties.text || component.type;
         } else if (component.type === 'window') {
             displayText = component.properties.title || 'Window';
+        } else if (component.type === 'panel') {
+            displayText = component.properties.text || 'Panel';
         } else {
             displayText = component.type;
         }
-        div.textContent = displayText;
         
-        // Добавляем иконку для визуального различия
         const iconMap = {
             'window': '📂',
             'button': '🔘',
@@ -256,17 +236,14 @@ class UIDesigner {
             'listbox': '📋',
             'panel': '▯'
         };
-        if (iconMap[component.type]) {
-            div.innerHTML = `${iconMap[component.type]} ${displayText}`;
-        }
         
-        // Обработка клика для выбора
+        div.innerHTML = `${iconMap[component.type] || ''} ${displayText}`;
+        
         div.addEventListener('click', (e) => {
             e.stopPropagation();
             this.selectComponent(component);
         });
         
-        // Обработка перетаскивания внутри canvas
         div.addEventListener('mousedown', (e) => {
             if (e.target === div || div.contains(e.target)) {
                 e.stopPropagation();
@@ -280,7 +257,6 @@ class UIDesigner {
     selectComponent(component) {
         this.selectedComponent = component;
         
-        // Удаляем выделение со всех компонентов
         document.querySelectorAll('.ui-component').forEach(el => {
             el.classList.remove('selected');
         });
@@ -337,7 +313,7 @@ class UIDesigner {
                 html += `
                     <div class="property-group">
                         <label>${this.capitalize(key)}:</label>
-                        <input type="text" value="${value}" 
+                        <input type="text" value="${value.replace(/"/g, '&quot;')}" 
                                onchange="uiDesigner.updateProperty(${component.id}, '${key}', this.value)">
                     </div>
                 `;
@@ -378,7 +354,6 @@ class UIDesigner {
         if (component) {
             component.properties[key] = value;
             
-            // Обновляем отображение
             const el = document.getElementById(`comp-${id}`);
             if (el) {
                 el.style.left = `${component.properties.x}px`;
@@ -386,12 +361,13 @@ class UIDesigner {
                 el.style.width = `${component.properties.width}px`;
                 el.style.height = `${component.properties.height}px`;
                 
-                // Обновляем текст
                 let displayText = '';
                 if (component.type === 'button' || component.type === 'label' || component.type === 'checkbox' || component.type === 'radiobutton') {
                     displayText = component.properties.text || component.type;
                 } else if (component.type === 'window') {
                     displayText = component.properties.title || 'Window';
+                } else if (component.type === 'panel') {
+                    displayText = component.properties.text || 'Panel';
                 } else {
                     displayText = component.type;
                 }
@@ -465,7 +441,6 @@ class UIDesigner {
                 
                 this.updateComponentPosition(component.id, newX, newY);
                 
-                // Обновляем панель свойств если этот компонент выбран
                 if (this.selectedComponent?.id === component.id) {
                     this.showProperties(component);
                 }
@@ -486,15 +461,11 @@ class UIDesigner {
     
     async saveToBackend() {
         try {
-            const response = await fetch('/api/components', {
+            await fetch('/api/components', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(this.components)
             });
-            
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
         } catch (error) {
             console.error('Error saving to backend:', error);
         }
@@ -571,7 +542,7 @@ class UIDesigner {
             const data = await response.json();
             if (data.success) {
                 this.codeOutput.textContent = data.code;
-                alert('Code generated successfully!');
+                alert('Win32 GUI code generated successfully!');
             } else {
                 this.codeOutput.textContent = 'Error generating code: ' + (data.error || 'Unknown error');
             }
@@ -611,7 +582,7 @@ class UIDesigner {
     
     copyCode() {
         const code = this.codeOutput.textContent;
-        if (code && code !== 'No code generated yet') {
+        if (code && code !== 'No code generated yet' && code !== 'Error generating code. Make sure the backend is running.') {
             navigator.clipboard.writeText(code).then(() => {
                 alert('Code copied to clipboard!');
             });
@@ -627,16 +598,4 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM loaded, initializing UI Designer...');
     uiDesigner = new UIDesigner();
     window.uiDesigner = uiDesigner;
-    
-    // Проверяем наличие canvas
-    const canvas = document.getElementById('canvas');
-    if (canvas) {
-        console.log('Canvas found, size:', canvas.clientWidth, 'x', canvas.clientHeight);
-    } else {
-        console.error('Canvas element not found!');
-    }
-    
-    // Проверяем компоненты в тулбоксе
-    const components = document.querySelectorAll('.component-item');
-    console.log('Found components in toolbox:', components.length);
 });
