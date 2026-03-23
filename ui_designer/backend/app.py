@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, send_file
+from flask import Flask, render_template, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 import json
 import os
@@ -12,16 +12,27 @@ from ui_parser import UIParser
 
 # Создаем директории если их нет
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-FRONTEND_DIR = os.path.join(os.path.dirname(BASE_DIR), 'frontend')
-GENERATED_DIR = os.path.join(os.path.dirname(BASE_DIR), 'generated')
+PROJECT_DIR = os.path.dirname(BASE_DIR)
+FRONTEND_DIR = os.path.join(PROJECT_DIR, 'frontend')
+GENERATED_DIR = os.path.join(PROJECT_DIR, 'generated')
 
+# Убедимся, что директории существуют
 os.makedirs(FRONTEND_DIR, exist_ok=True)
 os.makedirs(GENERATED_DIR, exist_ok=True)
 
+# Создаем тестовые файлы если их нет
+test_html = os.path.join(FRONTEND_DIR, 'index.html')
+test_css = os.path.join(FRONTEND_DIR, 'style.css')
+test_js = os.path.join(FRONTEND_DIR, 'script.js')
+
+if not os.path.exists(test_css):
+    print(f"Warning: {test_css} not found! Please ensure frontend files are in place.")
+
 app = Flask(__name__, 
             static_folder=FRONTEND_DIR,
+            static_url_path='',  # Это важно для правильной маршрутизации статики
             template_folder=FRONTEND_DIR)
-CORS(app)  # Разрешаем CORS для всех источников
+CORS(app)
 
 # Хранилище для текущего проекта
 current_project = {
@@ -37,6 +48,17 @@ def index():
     """Главная страница"""
     return render_template('index.html')
 
+# Добавляем явные маршруты для статических файлов
+@app.route('/style.css')
+def serve_css():
+    """Отдача CSS файла"""
+    return send_from_directory(FRONTEND_DIR, 'style.css')
+
+@app.route('/script.js')
+def serve_js():
+    """Отдача JS файла"""
+    return send_from_directory(FRONTEND_DIR, 'script.js')
+
 @app.route('/api/components', methods=['GET'])
 def get_components():
     """Получить все компоненты текущего проекта"""
@@ -47,11 +69,9 @@ def add_component():
     """Добавить новый компонент"""
     try:
         data = request.json
-        # Если приходит массив компонентов, обновляем весь список
         if isinstance(data, list):
             current_project['components'] = data
             return jsonify({'success': True, 'count': len(data)})
-        # Иначе добавляем один компонент
         elif isinstance(data, dict):
             if 'id' not in data:
                 data['id'] = len(current_project['components']) + 1
@@ -94,7 +114,6 @@ def generate_code():
         
         cpp_code = generator.generate_code(project_name, components)
         
-        # Сохраняем сгенерированный код
         output_path = os.path.join(GENERATED_DIR, 'output.cpp')
         with open(output_path, 'w', encoding='utf-8') as f:
             f.write(cpp_code)
@@ -160,17 +179,29 @@ def health_check():
     return jsonify({
         'status': 'ok',
         'components_count': len(current_project['components']),
-        'server': 'running'
+        'server': 'running',
+        'frontend_dir': FRONTEND_DIR,
+        'static_files_exist': {
+            'index.html': os.path.exists(os.path.join(FRONTEND_DIR, 'index.html')),
+            'style.css': os.path.exists(os.path.join(FRONTEND_DIR, 'style.css')),
+            'script.js': os.path.exists(os.path.join(FRONTEND_DIR, 'script.js'))
+        }
     })
 
 if __name__ == '__main__':
-    # Получаем IP адрес сервера для вывода в консоль
     import socket
     hostname = socket.gethostname()
     local_ip = socket.gethostbyname(hostname)
     
     print("\n" + "="*50)
     print("C++ UI Designer Server")
+    print("="*50)
+    print(f"Project directory: {PROJECT_DIR}")
+    print(f"Frontend directory: {FRONTEND_DIR}")
+    print(f"Static files:")
+    print(f"  - index.html: {os.path.exists(os.path.join(FRONTEND_DIR, 'index.html'))}")
+    print(f"  - style.css: {os.path.exists(os.path.join(FRONTEND_DIR, 'style.css'))}")
+    print(f"  - script.js: {os.path.exists(os.path.join(FRONTEND_DIR, 'script.js'))}")
     print("="*50)
     print(f"Server is running on:")
     print(f"  - Local:   http://localhost:888")
@@ -180,5 +211,4 @@ if __name__ == '__main__':
     print("Make sure firewall allows port 888")
     print("Press Ctrl+C to stop the server\n")
     
-    # Запускаем сервер на всех интерфейсах (0.0.0.0) на порту 888
     app.run(host='0.0.0.0', port=888, debug=True, threaded=True)
